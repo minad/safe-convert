@@ -63,6 +63,13 @@ test_Integral_conversion =
   , integral (P :: P Word8)   (P :: P Word)
   ]
 
+test_Integral_Maybe_conversion :: [TestTree]
+test_Integral_Maybe_conversion =
+  [ integralMaybe (P :: P Int32)     (P :: P Int16)
+  , integralMaybe (P :: P Word32)    (P :: P Int16)
+  ]
+
+
 test_Natural_conversion :: [TestTree]
 test_Natural_conversion =
   [ integral (P :: P Natural) (P :: P Integer)
@@ -186,11 +193,13 @@ enum :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a
          => proxy a -> proxy b -> TestTree
 enum pa pb = testSpecial (testName pa "->" pb) $ \(a :: a) -> toEnum (fromEnum (convert a :: b)) == a
 
-integral :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Convert a (Maybe b), Integral b, Num a, Typeable a, Typeable b)
+integral :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Integral b, Num a, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-integral pa pb = testGroup (testName pa "->" pb)
-  [ testSpecial "exact" $ \(a :: a) -> fromIntegral (convert a :: b) == a
-  , testSpecial "maybe" $ \(a :: a) -> fmap fromIntegral (convert a :: Maybe b) == Just a ]
+integral pa pb = testSpecial (testName pa "->" pb) $ \(a :: a) -> fromIntegral (convert a :: b) == a
+
+integralMaybe :: forall a b proxy. (Eq a, Show b, Arbitrary b, SpecialValues b, Convert a (Maybe b), Integral a, Integral b, Num a, Typeable a, Typeable b)
+              => proxy a -> proxy b -> TestTree
+integralMaybe pa pb = testSpecial (testName pa "~>" pb) $ \(a :: b) -> fmap fromIntegral (convert (fromIntegral a :: a) :: Maybe b) == Just (fromIntegral a :: a)
 
 frac :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, RealFrac b, Integral a, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree

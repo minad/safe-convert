@@ -4,9 +4,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+--{-# LANGUAGE UndecidableInstances #-}
 
 module Safe.Convert (
     Convert(..)
@@ -91,8 +92,25 @@ type instance And 'True  'False = 'False
 type instance And 'False 'True  = 'False
 type instance And 'False 'False = 'False
 
+type family Not (a :: Bool) :: Bool
+type instance Not 'True  = 'False
+type instance Not 'False = 'True
+
 --type InRange a b = (Lo a <= Lo b, Hi a <= Hi b)
 type InRange a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b)) ~ 'True
+type OutOfRange a b = (Not (And (Lo a <=? Lo b) (Hi a <=? Hi b))) ~ 'True
+
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word (Maybe a)               where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word16 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word32 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word64 (Maybe a)             where convert = fromIntegralMaybe
+
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int (Maybe a)               where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int8 (Maybe a)              where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int16 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int32 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int64 (Maybe a)             where convert = fromIntegralMaybe
 
 instance {-# OVERLAPPABLE #-} (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
 instance {-# OVERLAPPABLE #-} (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
@@ -100,23 +118,11 @@ instance {-# OVERLAPPABLE #-} (InRange Word32 a, Num a) => Convert Word32 a wher
 instance {-# OVERLAPPABLE #-} (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
 instance {-# OVERLAPPABLE #-} (InRange Word8 a,  Num a) => Convert Word8  a where convert = fromIntegral
 
-instance {-# OVERLAPS #-} (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
-instance {-# OVERLAPS #-} (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
-instance {-# OVERLAPS #-} (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
-instance {-# OVERLAPS #-} (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
-instance {-# OVERLAPS #-} (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
-
-instance Integral a => Convert Word (Maybe a)               where convert = fromIntegralMaybe
-instance Integral a => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
-instance Integral a => Convert Word16 (Maybe a)             where convert = fromIntegralMaybe
-instance Integral a => Convert Word32 (Maybe a)             where convert = fromIntegralMaybe
-instance Integral a => Convert Word64 (Maybe a)             where convert = fromIntegralMaybe
-
-instance Integral a => Convert Int (Maybe a)               where convert = fromIntegralMaybe
-instance Integral a => Convert Int8 (Maybe a)              where convert = fromIntegralMaybe
-instance Integral a => Convert Int16 (Maybe a)             where convert = fromIntegralMaybe
-instance Integral a => Convert Int32 (Maybe a)             where convert = fromIntegralMaybe
-instance Integral a => Convert Int64 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
 
 newtype Lenient a = Lenient { getLenient :: a }
   deriving (Eq, Ord, Show)
@@ -186,8 +192,8 @@ instance Convert Text          [Word8]        where convert s = convert (convert
 instance Convert [Word8]       ByteString     where convert = B.pack
 instance Convert [Word8]       LB.ByteString  where convert = LB.pack
 instance Convert [Word8]       [Word8]        where convert = id
-instance {-# OVERLAPS #-} Convert Word8         ByteString     where convert = B.singleton
-instance {-# OVERLAPS #-} Convert Word8         LB.ByteString  where convert = LB.singleton
+instance {-# OVERLAPPABLE #-} Convert Word8         ByteString     where convert = B.singleton
+instance {-# OVERLAPPABLE #-} Convert Word8         LB.ByteString  where convert = LB.singleton
 
 instance Convert Char   ByteString    where convert = B.pack . Codec.Binary.UTF8.String.encodeChar
 instance Convert Char   Char          where convert = id
@@ -197,7 +203,7 @@ instance Convert Char   String        where convert = pure
 instance Convert Char   Text          where convert = T.singleton
 instance Convert Char   Word          where convert = enumToEnum
 instance Convert Char   [Word8]       where convert = Codec.Binary.UTF8.String.encodeChar
-instance {-# OVERLAPPABLE #-} (InRange Char a, Enum a) => Convert Char (Maybe a) where convert = enumToEnumMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Char a, Enum a) => Convert Char (Maybe a) where convert = enumToEnumMaybe
 instance {-# OVERLAPPABLE #-} (InRange Char a, Enum a) => Convert Char a         where convert = enumToEnum
 
 instance Convert Double   Double where convert = id
