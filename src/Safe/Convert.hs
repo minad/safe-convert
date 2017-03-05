@@ -80,11 +80,11 @@ type instance Hi Float = 0xFFFFF
 type instance Lo Double = 0xFFFFFFFFF
 type instance Hi Double = 0xFFFFFFFFF
 
-type family Or (a :: Bool) (b :: Bool) :: Bool
-type instance Or 'True  'True  = 'True
-type instance Or 'True  'False = 'True
-type instance Or 'False 'True  = 'True
-type instance Or 'False 'False = 'False
+-- type family Or (a :: Bool) (b :: Bool) :: Bool
+-- type instance Or 'True  'True  = 'True
+-- type instance Or 'True  'False = 'True
+-- type instance Or 'False 'True  = 'True
+-- type instance Or 'False 'False = 'False
 
 type family And (a :: Bool) (b :: Bool) :: Bool
 type instance And 'True  'True  = 'True
@@ -92,13 +92,14 @@ type instance And 'True  'False = 'False
 type instance And 'False 'True  = 'False
 type instance And 'False 'False = 'False
 
-type family Not (a :: Bool) :: Bool
-type instance Not 'True  = 'False
-type instance Not 'False = 'True
+-- type family Not (a :: Bool) :: Bool
+-- type instance Not 'True  = 'False
+-- type instance Not 'False = 'True
 
 --type InRange a b = (Lo a <= Lo b, Hi a <= Hi b)
-type InRange a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b)) ~ 'True
-type OutOfRange a b = (Not (And (Lo a <=? Lo b) (Hi a <=? Hi b))) ~ 'True
+type InRangeF a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b))
+type InRange a b = InRangeF a b ~ 'True
+type OutOfRange a b = InRangeF a b ~ 'False
 
 instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word (Maybe a)               where convert = fromIntegralMaybe
 instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
