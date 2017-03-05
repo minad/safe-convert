@@ -7,6 +7,7 @@
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+--{-# LANGUAGE UndecidableInstances #-}
 
 module Safe.Convert (
     Convert(..)
@@ -73,10 +74,17 @@ type instance Lo Rational = 0xFFFFFFFFFFFFFFFFF
 type instance Hi Rational = 0xFFFFFFFFFFFFFFFFF
 type instance Lo Natural = 0
 type instance Hi Natural = 0xFFFFFFFFFFFFFFFFF
+
 type instance Lo Float = 0xFFFFF
 type instance Hi Float = 0xFFFFF
 type instance Lo Double = 0xFFFFFFFFF
 type instance Hi Double = 0xFFFFFFFFF
+
+-- type family Or (a :: Bool) (b :: Bool) :: Bool
+-- type instance Or 'True  'True  = 'True
+-- type instance Or 'True  'False = 'True
+-- type instance Or 'False 'True  = 'True
+-- type instance Or 'False 'False = 'False
 
 type family And (a :: Bool) (b :: Bool) :: Bool
 type instance And 'True  'True  = 'True
@@ -84,33 +92,38 @@ type instance And 'True  'False = 'False
 type instance And 'False 'True  = 'False
 type instance And 'False 'False = 'False
 
+-- type family Not (a :: Bool) :: Bool
+-- type instance Not 'True  = 'False
+-- type instance Not 'False = 'True
+
+--type InRange a b = (Lo a <= Lo b, Hi a <= Hi b)
 type InRangeF a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b))
 type InRange a b = InRangeF a b ~ 'True
 type OutOfRange a b = InRangeF a b ~ 'False
 
-instance (OutOfRange Word a, Integral a) => Convert Word (Maybe a)               where convert = fromIntegralMaybe
-instance (OutOfRange Word8 a, Integral a) => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
-instance (OutOfRange Word16 a, Integral a) => Convert Word16 (Maybe a)             where convert = fromIntegralMaybe
-instance (OutOfRange Word32 a, Integral a) => Convert Word32 (Maybe a)             where convert = fromIntegralMaybe
-instance (OutOfRange Word64 a, Integral a) => Convert Word64 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word (Maybe a)               where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word16 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word32 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Word64 (Maybe a)             where convert = fromIntegralMaybe
 
-instance (OutOfRange Int a, Integral a) => Convert Int (Maybe a)               where convert = fromIntegralMaybe
-instance (OutOfRange Int8 a, Integral a) => Convert Int8 (Maybe a)              where convert = fromIntegralMaybe
-instance (OutOfRange Int16 a, Integral a) => Convert Int16 (Maybe a)             where convert = fromIntegralMaybe
-instance (OutOfRange Int32 a, Integral a) => Convert Int32 (Maybe a)             where convert = fromIntegralMaybe
-instance (OutOfRange Int64 a, Integral a) => Convert Int64 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int (Maybe a)               where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int8 (Maybe a)              where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int16 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int32 (Maybe a)             where convert = fromIntegralMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Word a, Integral a) => Convert Int64 (Maybe a)             where convert = fromIntegralMaybe
 
-instance (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
-instance (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
-instance (InRange Word32 a, Num a) => Convert Word32 a where convert = fromIntegral
-instance (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
-instance (InRange Word8 a,  Num a) => Convert Word8  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word32 a, Num a) => Convert Word32 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word8 a,  Num a) => Convert Word8  a where convert = fromIntegral
 
-instance (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
-instance (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
-instance (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
-instance (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
-instance (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
 
 newtype Lenient a = Lenient { getLenient :: a }
   deriving (Eq, Ord, Show)
@@ -180,8 +193,8 @@ instance Convert Text          [Word8]        where convert s = convert (convert
 instance Convert [Word8]       ByteString     where convert = B.pack
 instance Convert [Word8]       LB.ByteString  where convert = LB.pack
 instance Convert [Word8]       [Word8]        where convert = id
-instance Convert Word8         ByteString     where convert = B.singleton
-instance Convert Word8         LB.ByteString  where convert = LB.singleton
+instance {-# OVERLAPPABLE #-} Convert Word8         ByteString     where convert = B.singleton
+instance {-# OVERLAPPABLE #-} Convert Word8         LB.ByteString  where convert = LB.singleton
 
 instance Convert Char   ByteString    where convert = B.pack . Codec.Binary.UTF8.String.encodeChar
 instance Convert Char   Char          where convert = id
@@ -191,7 +204,7 @@ instance Convert Char   String        where convert = pure
 instance Convert Char   Text          where convert = T.singleton
 instance Convert Char   Word          where convert = enumToEnum
 instance Convert Char   [Word8]       where convert = Codec.Binary.UTF8.String.encodeChar
-instance (OutOfRange Char a, Enum a) => Convert Char (Maybe a) where convert = enumToEnumMaybe
+instance {-# OVERLAPPABLE #-} (OutOfRange Char a, Enum a) => Convert Char (Maybe a) where convert = enumToEnumMaybe
 instance {-# OVERLAPPABLE #-} (InRange Char a, Enum a) => Convert Char a         where convert = enumToEnum
 
 instance Convert Double   Double where convert = id
