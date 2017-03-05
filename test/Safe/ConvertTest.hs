@@ -61,16 +61,22 @@ test_Integral_conversion =
   , integral (P :: P Word8)   (P :: P Word32)
   , integral (P :: P Word8)   (P :: P Word64)
   , integral (P :: P Word8)   (P :: P Word)
+  ]
 
-  , integral (P :: P Natural) (P :: P Integer)
+test_Natural_conversion :: [TestTree]
+test_Natural_conversion =
+  [ integral (P :: P Natural) (P :: P Integer)
   , integral (P :: P Natural) (P :: P Natural)
   , integral (P :: P Word)    (P :: P Natural)
   , integral (P :: P Word16)  (P :: P Natural)
   , integral (P :: P Word32)  (P :: P Natural)
   , integral (P :: P Word64)  (P :: P Natural)
   , integral (P :: P Word8)   (P :: P Natural)
+  ]
 
-  , integral (P :: P Int)     (P :: P Integer)
+test_Integer_conversion :: [TestTree]
+test_Integer_conversion =
+  [ integral (P :: P Int)     (P :: P Integer)
   , integral (P :: P Int16)   (P :: P Integer)
   , integral (P :: P Int32)   (P :: P Integer)
   , integral (P :: P Int64)   (P :: P Integer)
@@ -172,8 +178,8 @@ test_Char_conversion =
   , enum (P :: P Char)   (P :: P Word)
   , enum (P :: P Char)   (P :: P Word32)
   , enum (P :: P Char)   (P :: P Word64)
-  , enum (P :: P Word16) (P :: P Char)
-  , enum (P :: P Word8)  (P :: P Char)
+--  , enum (P :: P Word16) (P :: P Char)
+--  , enum (P :: P Word8)  (P :: P Char)
   ]
 
 enum :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Enum a, Enum b, Typeable a, Typeable b)

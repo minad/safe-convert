@@ -1,8 +1,12 @@
-{-# LANGUAGE Safe #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Safe.Convert (
     Convert(..)
@@ -18,6 +22,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Text (Text)
 import Data.Text.Encoding.Error (lenientDecode)
 import Data.Word
+import GHC.TypeLits
 import Data.Bool (bool)
 import GHC.Float (float2Double)
 import Numeric.Natural (Natural)
@@ -32,13 +37,89 @@ import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding
 
-newtype Lenient a = Lenient { getLenient :: a }
-  deriving (Eq, Ord, Show)
-
 class Convert a b where
   convert :: a -> b
 
 type Convertible a b = (Convert a b, Convert b a)
+
+type family Lo a :: Nat
+type family Hi a :: Nat
+
+type instance Lo Word8 = 0
+type instance Hi Word8 = 0xFF
+type instance Lo Word16 = 0
+type instance Hi Word16 = 0xFFFF
+type instance Lo Word32 = 0
+type instance Hi Word32 = 0xFFFFFFFF
+type instance Lo Word64 = 0
+type instance Hi Word64 = 0xFFFFFFFFFFFFFFFF
+type instance Lo Word = 0
+type instance Hi Word = 0xFFFFFFFFFFFFFFFF
+type instance Lo Int8 = 0x80
+type instance Hi Int8 = 0x7F
+type instance Lo Int16 = 0x8000
+type instance Hi Int16 = 0x7FFF
+type instance Lo Int32 = 0x80000000
+type instance Hi Int32 = 0x7FFFFFFF
+type instance Lo Int64 = 0x8000000000000000
+type instance Hi Int64 = 0x7FFFFFFFFFFFFFFF
+type instance Lo Int = 0x8000000000000000
+type instance Hi Int = 0x7FFFFFFFFFFFFFFF
+type instance Lo Char = 0
+type instance Hi Char = 0x10FFFF
+type instance Lo Integer = 0xFFFFFFFFFFFFFFFFF
+type instance Hi Integer = 0xFFFFFFFFFFFFFFFFF
+type instance Lo Rational = 0xFFFFFFFFFFFFFFFFF
+type instance Hi Rational = 0xFFFFFFFFFFFFFFFFF
+type instance Lo Natural = 0
+type instance Hi Natural = 0xFFFFFFFFFFFFFFFFF
+
+type instance Lo Float = 0xFFFFF
+type instance Hi Float = 0xFFFFF
+type instance Lo Double = 0xFFFFFFFFF
+type instance Hi Double = 0xFFFFFFFFF
+
+type family Or (a :: Bool) (b :: Bool) :: Bool
+type instance Or 'True  'True  = 'True
+type instance Or 'True  'False = 'True
+type instance Or 'False 'True  = 'True
+type instance Or 'False 'False = 'False
+
+type family And (a :: Bool) (b :: Bool) :: Bool
+type instance And 'True  'True  = 'True
+type instance And 'True  'False = 'False
+type instance And 'False 'True  = 'False
+type instance And 'False 'False = 'False
+
+--type InRange a b = (Lo a <= Lo b, Hi a <= Hi b)
+type InRange a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b)) ~ 'True
+
+instance (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
+instance (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
+instance (InRange Word32 a, Num a) => Convert Word32 a where convert = fromIntegral
+instance (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word8 a,  Num a) => Convert Word8  a where convert = fromIntegral
+
+instance (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
+instance (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
+instance (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
+instance (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
+instance (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
+
+instance Integral a => Convert Word (Maybe a)               where convert = fromIntegralMaybe
+instance Integral a => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
+instance Integral a => Convert Word16 (Maybe a)             where convert = fromIntegralMaybe
+instance Integral a => Convert Word32 (Maybe a)             where convert = fromIntegralMaybe
+instance Integral a => Convert Word64 (Maybe a)             where convert = fromIntegralMaybe
+
+instance Integral a => Convert Int (Maybe a)               where convert = fromIntegralMaybe
+instance Integral a => Convert Int8 (Maybe a)              where convert = fromIntegralMaybe
+instance Integral a => Convert Int16 (Maybe a)             where convert = fromIntegralMaybe
+instance Integral a => Convert Int32 (Maybe a)             where convert = fromIntegralMaybe
+instance Integral a => Convert Int64 (Maybe a)             where convert = fromIntegralMaybe
+
+newtype Lenient a = Lenient { getLenient :: a }
+  deriving (Eq, Ord, Show)
 
 convertLenient :: Convert a (Lenient b) => a -> b
 convertLenient = getLenient . convert
@@ -52,13 +133,11 @@ instance (Convert a1 b1, Convert a2 b2, Convert a3 b3) => Convert (a1, a2, a3) (
 instance (Convert a1 b1, Convert a2 b2, Convert a3 b3, Convert a4 b4) => Convert (a1, a2, a3, a4) (b1, b2, b3, b4) where
   convert ~(a, b, c, d) = (convert a, convert b, convert c, convert d)
 
-instance Convert a b => Convert [a] (Maybe (NonEmpty b)) where
-  convert []     = Nothing
-  convert (a:as) = Just $ convert a :| fmap convert as
-
 instance Convert a b => Convert (NonEmpty a) (NonEmpty b) where convert = fmap convert
-instance Convert a b => Convert (Maybe a) (Maybe b)       where convert = fmap convert
 instance Convert a b => Convert (NonEmpty a) [b]          where convert = fmap convert . NonEmpty.toList
+
+instance Convert a b => Convert [a] (Maybe (NonEmpty b))  where convert = \case [] -> Nothing; (a:as) -> Just $ convert a :| fmap convert as
+instance Convert a b => Convert (Maybe a) (Maybe b)       where convert = fmap convert
 instance Convert a b => Convert (Maybe a) [b]             where convert = maybe [] (pure . convert)
 
 instance Convert [Word8]       (Lenient String)    where convert = convert . B.pack
@@ -104,128 +183,36 @@ instance Convert Text          LT.Text        where convert = LT.fromChunks . pu
 instance Convert Text          String         where convert = T.unpack
 instance Convert Text          Text           where convert = id
 instance Convert Text          [Word8]        where convert s = convert (convert s :: ByteString)
-instance Convert Word8         ByteString     where convert = B.singleton
-instance Convert Word8         LB.ByteString  where convert = LB.singleton
 instance Convert [Word8]       ByteString     where convert = B.pack
 instance Convert [Word8]       LB.ByteString  where convert = LB.pack
 instance Convert [Word8]       [Word8]        where convert = id
+instance {-# OVERLAPS #-} Convert Word8         ByteString     where convert = B.singleton
+instance {-# OVERLAPS #-} Convert Word8         LB.ByteString  where convert = LB.singleton
 
 instance Convert Char   ByteString    where convert = B.pack . Codec.Binary.UTF8.String.encodeChar
 instance Convert Char   Char          where convert = id
-instance Convert Char   Int           where convert = enumToEnum
-instance Convert Char   Int32         where convert = enumToEnum
-instance Convert Char   Int64         where convert = enumToEnum
-instance Convert Char   Integer       where convert = enumToEnum
 instance Convert Char   LB.ByteString where convert = LB.pack . convert
 instance Convert Char   LT.Text       where convert = LT.singleton
 instance Convert Char   String        where convert = pure
 instance Convert Char   Text          where convert = T.singleton
 instance Convert Char   Word          where convert = enumToEnum
-instance Convert Char   Word32        where convert = enumToEnum
-instance Convert Char   Word64        where convert = enumToEnum
 instance Convert Char   [Word8]       where convert = Codec.Binary.UTF8.String.encodeChar
-instance Convert Word16 Char          where convert = enumToEnum
-instance Convert Word8  Char          where convert = enumToEnum
+instance {-# OVERLAPPABLE #-} (InRange Char a, Enum a) => Convert Char (Maybe a) where convert = enumToEnumMaybe
+instance {-# OVERLAPPABLE #-} (InRange Char a, Enum a) => Convert Char a         where convert = enumToEnum
 
 instance Convert Double   Double where convert = id
 instance Convert Float    Double where convert = float2Double
 instance Convert Float    Float  where convert = id
-instance Convert Int16    Double where convert = fromIntegral
-instance Convert Int16    Float  where convert = fromIntegral
-instance Convert Int32    Double where convert = fromIntegral
-instance Convert Int8     Double where convert = fromIntegral
-instance Convert Int8     Float  where convert = fromIntegral
-instance Convert Word16   Double where convert = fromIntegral
-instance Convert Word16   Float  where convert = fromIntegral
-instance Convert Word32   Double where convert = fromIntegral
-instance Convert Word8    Double where convert = fromIntegral
-instance Convert Word8    Float  where convert = fromIntegral
 
-instance Convert Int      Rational where convert = fromIntegral
-instance Convert Int16    Rational where convert = fromIntegral
-instance Convert Int32    Rational where convert = fromIntegral
-instance Convert Int64    Rational where convert = fromIntegral
-instance Convert Int8     Rational where convert = fromIntegral
 instance Convert Rational Rational where convert = id
-instance Convert Word     Rational where convert = fromIntegral
-instance Convert Word16   Rational where convert = fromIntegral
-instance Convert Word32   Rational where convert = fromIntegral
-instance Convert Word64   Rational where convert = fromIntegral
-instance Convert Word8    Rational where convert = fromIntegral
 instance Convert Integer  Rational where convert = fromIntegral
 instance Convert Natural  Rational where convert = fromIntegral
 
-instance Convert Int     Integer  where convert = fromIntegral
-instance Convert Int16   Integer  where convert = fromIntegral
-instance Convert Int32   Integer  where convert = fromIntegral
-instance Convert Int64   Integer  where convert = fromIntegral
-instance Convert Int8    Integer  where convert = fromIntegral
-instance Convert Integer Integer  where convert = fromIntegral
-instance Convert Word    Integer  where convert = fromIntegral
-instance Convert Word16  Integer  where convert = fromIntegral
-instance Convert Word32  Integer  where convert = fromIntegral
-instance Convert Word64  Integer  where convert = fromIntegral
-instance Convert Word8   Integer  where convert = fromIntegral
+instance Convert Integer Integer where convert = id
+instance Integral a => Convert Integer (Maybe a) where convert = Just . fromIntegral
 
-instance Convert Natural Integer  where convert = fromIntegral
-instance Convert Natural Natural  where convert = fromIntegral
-instance Convert Word    Natural  where convert = fromIntegral
-instance Convert Word16  Natural  where convert = fromIntegral
-instance Convert Word32  Natural  where convert = fromIntegral
-instance Convert Word64  Natural  where convert = fromIntegral
-instance Convert Word8   Natural  where convert = fromIntegral
-
-instance Convert Int    Int    where convert = fromIntegral
-instance Convert Int16  Int    where convert = fromIntegral
-instance Convert Int16  Int16  where convert = fromIntegral
-instance Convert Int16  Int32  where convert = fromIntegral
-instance Convert Int16  Int64  where convert = fromIntegral
-instance Convert Int32  Int    where convert = fromIntegral
-instance Convert Int32  Int32  where convert = fromIntegral
-instance Convert Int32  Int64  where convert = fromIntegral
-instance Convert Int64  Int64  where convert = fromIntegral
-instance Convert Int8   Int    where convert = fromIntegral
-instance Convert Int8   Int16  where convert = fromIntegral
-instance Convert Int8   Int32  where convert = fromIntegral
-instance Convert Int8   Int64  where convert = fromIntegral
-instance Convert Int8   Int8   where convert = fromIntegral
-instance Convert Word   Word   where convert = fromIntegral
-instance Convert Word   Word64 where convert = fromIntegral
-instance Convert Word16 Int32  where convert = fromIntegral
-instance Convert Word16 Int64  where convert = fromIntegral
-instance Convert Word16 Word   where convert = fromIntegral
-instance Convert Word16 Word16 where convert = fromIntegral
-instance Convert Word16 Word32 where convert = fromIntegral
-instance Convert Word16 Word64 where convert = fromIntegral
-instance Convert Word32 Int64  where convert = fromIntegral
-instance Convert Word32 Word   where convert = fromIntegral
-instance Convert Word32 Word32 where convert = fromIntegral
-instance Convert Word32 Word64 where convert = fromIntegral
-instance Convert Word64 Word64 where convert = fromIntegral
-instance Convert Word8  Int    where convert = fromIntegral
-instance Convert Word8  Int16  where convert = fromIntegral
-instance Convert Word8  Int32  where convert = fromIntegral
-instance Convert Word8  Int64  where convert = fromIntegral
-instance Convert Word8  Word   where convert = fromIntegral
-instance Convert Word8  Word16 where convert = fromIntegral
-instance Convert Word8  Word32 where convert = fromIntegral
-instance Convert Word8  Word64 where convert = fromIntegral
-instance Convert Word8  Word8  where convert = fromIntegral
-
-instance Convert Word   (Maybe Int16)  where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Int32)  where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Int64)  where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Int8)   where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Word16) where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Word32) where convert = fromIntegralMaybe
-instance Convert Word   (Maybe Word8)  where convert = fromIntegralMaybe
-instance Convert Word16 (Maybe Int16)  where convert = fromIntegralMaybe
-instance Convert Word16 (Maybe Int8)   where convert = fromIntegralMaybe
-instance Convert Word16 (Maybe Word8)  where convert = fromIntegralMaybe
-instance Convert Word32 (Maybe Word16) where convert = fromIntegralMaybe
-instance Convert Word32 (Maybe Word8)  where convert = fromIntegralMaybe
-instance Convert Word64 (Maybe Word16) where convert = fromIntegralMaybe
-instance Convert Word64 (Maybe Word8)  where convert = fromIntegralMaybe
+instance Convert Natural Natural where convert = id
+instance Convert Natural Integer where convert = fromIntegral
 
 fromIntegralMaybe :: (Integral a, Integral b) => a -> Maybe b
 fromIntegralMaybe a = let b = fromIntegral a in bool Nothing (Just b) (fromIntegral b == a)
@@ -241,3 +228,6 @@ eitherToMaybe = either (const Nothing) Just
 
 enumToEnum :: (Enum a, Enum b) => a -> b
 enumToEnum = toEnum . fromEnum
+
+enumToEnumMaybe :: (Enum a, Enum b, Eq a) => a -> Maybe b
+enumToEnumMaybe a = let b = enumToEnum a in bool Nothing (Just b) (enumToEnum b == a)
