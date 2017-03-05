@@ -1,0 +1,48 @@
+name: safe-convert
+version: 0.1.0.0
+synopsis: Safe type conversion
+description:
+  This package provides the Safe.Convert class
+  for safe conversions. While not being the best
+  idea for type inference, you get the additional
+  guarantee of safety. If there is a
+  Safe.Convert instance - you are safe and the conversion
+  is lossless (in contrast to functions like fromIntegral).
+  In particular, this package provides string conversion
+  and safe UTF-8 string decoding.
+license: MIT
+author: Daniel Mendler
+maintainer: mail@daniel-mendler.de
+category: Data, Conversion
+
+github: minad/convert
+
+tested-with:
+  GHC == 7.10.1,
+  GHC == 8.0.1
+
+dependencies:
+  - base        >= 4.8 && < 5
+  - bytestring  >= 0.9 && < 0.11
+  - text        >= 1.2 && < 1.3
+  - utf8-string >= 1.0 && < 1.1
+
+library:
+  ghc-options: -Wall
+  source-dirs:
+    - src
+
+tests:
+  test:
+    main: test.hs
+    ghc-options: -Wall
+    source-dirs:
+      - test
+    dependencies:
+      - quickcheck-instances
+      - quickcheck-special
+      - safe-convert
+      - tasty
+      - tasty-auto
+      - tasty-quickcheck
+      - ieee754
