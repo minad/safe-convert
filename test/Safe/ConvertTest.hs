@@ -184,30 +184,31 @@ test_Char_conversion =
 
 enum :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Enum a, Enum b, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-enum pa pb = testConv pa "->" pb $ \(a :: a) -> toEnum (fromEnum (convert a :: b)) == a
+enum pa pb = testSpecial (testName pa "->" pb) $ \(a :: a) -> toEnum (fromEnum (convert a :: b)) == a
 
-integral :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Integral b, Num a, Typeable a, Typeable b)
+integral :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Convert a (Maybe b), Integral b, Num a, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-integral pa pb = testConv pa "->" pb $ \(a :: a) -> fromIntegral (convert a :: b) == a
+integral pa pb = testGroup (testName pa "->" pb)
+  [ testSpecial "exact" $ \(a :: a) -> fromIntegral (convert a :: b) == a
+  , testSpecial "maybe" $ \(a :: a) -> fmap fromIntegral (convert a :: Maybe b) == Just a ]
 
 frac :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, RealFrac b, Integral a, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-frac pa pb = testConv pa "->" pb $ \(a :: a) -> truncate (convert a :: b) == a
+frac pa pb = testSpecial (testName pa "->" pb) $ \(a :: a) -> truncate (convert a :: b) == a
 
 iso :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convertible a b, Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-iso pa pb = testConv pa "<->" pb $ \(a :: a) -> convert (convert a :: b) == a
+iso pa pb = testSpecial (testName pa "<->" pb) $ \(a :: a) -> convert (convert a :: b) == a
 
 decoding :: forall a b proxy. (Eq a, Show a, Arbitrary a, SpecialValues a, Convert a b, Convert b (Maybe a), Typeable a, Typeable b)
          => proxy a -> proxy b -> TestTree
-decoding pa pb = testConv pa "<~>" pb $ \(a :: a) -> convert (convert a :: b) == Just a
+decoding pa pb = testSpecial (testName pa "<~>" pb) $ \(a :: a) -> convert (convert a :: b) == Just a
 
 typeName :: forall proxy a. Typeable a => proxy a -> String
 typeName _ = show $ typeOf (undefined :: a)
 
-testConv :: forall proxy a b. (Show a, SpecialValues a, Arbitrary a, Typeable a, Typeable b)
-         => proxy a -> String -> proxy b -> (a -> Bool) -> TestTree
-testConv a s b = testSpecial (typeName a ++ " " ++ s ++ " " ++ typeName b)
+testName :: (Typeable a, Typeable b) => proxy a -> String -> proxy b -> String
+testName a s b = typeName a ++ " " ++ s ++ " " ++ typeName b
 
 testSpecial :: (Show a, SpecialValues a, Arbitrary a) => TestName -> (a -> Bool) -> TestTree
 testSpecial n f = testProperty n $ f . getSpecial

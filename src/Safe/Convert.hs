@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -94,17 +94,17 @@ type instance And 'False 'False = 'False
 --type InRange a b = (Lo a <= Lo b, Hi a <= Hi b)
 type InRange a b = (And (Lo a <=? Lo b) (Hi a <=? Hi b)) ~ 'True
 
-instance (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
-instance (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
-instance (InRange Word32 a, Num a) => Convert Word32 a where convert = fromIntegral
-instance (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word a,   Num a) => Convert Word   a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word16 a, Num a) => Convert Word16 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word32 a, Num a) => Convert Word32 a where convert = fromIntegral
+instance {-# OVERLAPPABLE #-} (InRange Word64 a, Num a) => Convert Word64 a where convert = fromIntegral
 instance {-# OVERLAPPABLE #-} (InRange Word8 a,  Num a) => Convert Word8  a where convert = fromIntegral
 
-instance (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
-instance (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
-instance (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
-instance (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
-instance (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
+instance {-# OVERLAPS #-} (InRange Int a,    Num a) => Convert Int    a where convert = fromIntegral
+instance {-# OVERLAPS #-} (InRange Int16 a,  Num a) => Convert Int16  a where convert = fromIntegral
+instance {-# OVERLAPS #-} (InRange Int32 a,  Num a) => Convert Int32  a where convert = fromIntegral
+instance {-# OVERLAPS #-} (InRange Int64 a,  Num a) => Convert Int64  a where convert = fromIntegral
+instance {-# OVERLAPS #-} (InRange Int8 a,   Num a) => Convert Int8   a where convert = fromIntegral
 
 instance Integral a => Convert Word (Maybe a)               where convert = fromIntegralMaybe
 instance Integral a => Convert Word8 (Maybe a)              where convert = fromIntegralMaybe
@@ -211,6 +211,7 @@ instance Convert Natural  Rational where convert = fromIntegral
 instance Convert Integer Integer where convert = id
 instance Integral a => Convert Integer (Maybe a) where convert = Just . fromIntegral
 
+instance Convert Natural (Maybe Natural) where convert = Just
 instance Convert Natural Natural where convert = id
 instance Convert Natural Integer where convert = fromIntegral
 
